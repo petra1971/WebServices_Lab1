@@ -1,12 +1,13 @@
 package se.andreasson.core;
 
+import se.andreasson.utils.UtilsFileReader;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import se.andreasson.utils.FileReader;
 
 //Build with:
 // mvn package
@@ -45,7 +46,7 @@ public class SimpleServer {
             var output = new PrintWriter(socket.getOutputStream());
 
             File file = new File("web" + File.separator + url);  //Prepare file url
-            byte[] content = FileReader.readFromFile(file); //Read file contents to bit-array
+            byte[] content = UtilsFileReader.readFromFile(file); //Read file contents to bit-array
 
             output.println("HTTP/1.1 200 OK");
             output.println("Content-Length:" + content.length);

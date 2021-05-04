@@ -5,13 +5,13 @@ import java.util.List;
 
 public class TodoList {
 
-    List<Todo> list = new ArrayList<>();
+    List<se.andreasson.plugin.Todo> list = new ArrayList<se.andreasson.plugin.Todo>();
 
-    public List<Todo> getList() {
+    public List<se.andreasson.plugin.Todo> getList() {
         return list;
     }
 
-    public void addTodo(Todo td) {
+    public void addTodo(se.andreasson.plugin.Todo td) {
         list.add(td);
     }
 }

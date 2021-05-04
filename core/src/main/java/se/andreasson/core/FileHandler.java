@@ -2,7 +2,7 @@ package se.andreasson.core;
 
 import se.andreasson.core.model.Request;
 import se.andreasson.core.model.Response;
-import se.andreasson.utils.FileReader;
+import se.andreasson.utils.UtilsFileReader;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,16 +16,16 @@ public class FileHandler implements URLHandler {
             File file = new File("web" + File.separator + request.getRequestUrl());
             System.out.println("Filehandler filepath: " + request.getRequestUrl());
 
-            byte[] content = FileReader.readFromFile(file);                             //Read file contents to bit-array
+            byte[] content = UtilsFileReader.readFromFile(file);                             //Read file contents to bit-array
 
             if (content.length != 0) {                                                      //Kolla om filen finns, om inte returnera felkod 404
                 String contentType = Files.probeContentType(file.toPath());             //Find out content type
                 response.setContent(content);
                 response.setContentType(Files.probeContentType(file.toPath()));
                 response.setContentLength(content.length);
-                response.setStatusMessage("HTTP/1.1 200");
+                response.setFirstHeaderLine("HTTP/1.1 200");
             } else {
-                response.setStatusMessage("HTTP/1.1 400");
+                response.setFirstHeaderLine("HTTP/1.1 400");
                 response.setContentLength(0);
                 String error = "Bad Request";
                 response.setContent(error.getBytes());

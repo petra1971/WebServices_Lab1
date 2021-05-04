@@ -1,10 +1,10 @@
 package se.andreasson.core.model;
 
 public class Response {
-    private byte[] content;
-    private String contentType;
-    int contentLength;
-    String statusMessage; //200, 400, 404
+    private byte[] content = new byte[0];
+    private String contentType = "";
+    private int contentLength;
+    private String firstHeaderLine = ""; //200, 400, 404
 
     public Response() {
     }
@@ -39,11 +39,11 @@ public class Response {
         this.content = content;
     }
 
-    public String getStatusMessage() {
-        return statusMessage;
+    public String getFirstHeaderLine() {
+        return firstHeaderLine;
     }
 
-    public void setStatusMessage(String statusMessage) {
-        this.statusMessage = statusMessage;
+    public void setFirstHeaderLine(String firstHeaderLine) {
+        this.firstHeaderLine = firstHeaderLine;
     }
 }

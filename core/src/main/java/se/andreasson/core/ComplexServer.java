@@ -35,7 +35,7 @@ public class ComplexServer {
 
             while (true) {
                 Socket socket = serverSocket.accept();
-                executorService.execute(() -> handleRequest(socket));
+                executorService.execute(() -> handleConnection(socket));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -43,126 +43,83 @@ public class ComplexServer {
     }
 
     //Eventuellt skapa en Header-klass...
-    public static void handleRequest(Socket socket) {
+    public static void handleConnection(Socket socket) {
+        System.out.println(Thread.currentThread());
 
         Map<String, URLHandler> routes = new HashMap<>();
-        routes.put("/artists", new ArtistHandler());                  //http://localhost:8080/artists?name=Petra
+        routes.put("/artists", new ArtistHandler());            //no query string -> all artists. Query string e.g. name=Petra -> getArtistByName
+        routes.put("/artists/add", new ArtistHandler());
 
         try {
             BufferedInputStream byteInput = new BufferedInputStream(socket.getInputStream());
 
-            Request request = readHttpRequest(byteInput);                                                       //Läser headerns rader och avslutar vid tomrad då ev body börjar
+            Request request = readHeaderLines(byteInput);           //Läser headerns rader och avslutar vid tomrad då ev body börjar
 
-            if (request.getRequestMethod().equals("GET") || (request.getRequestMethod().equals("POST"))) {
-                URLHandler handler = routes.get(request.getRequestUrl());
-
-                if (handler == null) {
+            if (request.getRequestMethod().equals("GET") || (request.getRequestMethod().equals("POST"))) {    // Ex. GET /cat.png HTTP/1.1
+                URLHandler handler = routes.get(request.getRequestUrl());                                     //Ex. GET /artists HTTP/1.1
+                                                                                                              //Ex. GET /artists?name=Petra
+                if (handler == null) {                                                                          //Ex. POST /artists/add
                     handler = new FileHandler();
                 }
                 Response response = handler.handleURL(request);
-                postHttpResponse(socket, response);
+                postResponse(socket, response);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static Request readHttpRequest(BufferedInputStream byteInput) throws IOException {
-        Request request = new Request();
+    private static Request readHeaderLines(BufferedInputStream byteInput) throws IOException {
+        var request = new Request();
         while (true) {
-            String headerLine = readLine(byteInput);              //Läser en rad i taget med Martins byte-metod
+            String headerLine = readLine(byteInput);
+
+            if( headerLine.startsWith("GET") ||  headerLine.startsWith("POST"))  /*||headerLine.startsWith("HEAD") */
+            {
+                request.setRequestMethod(headerLine.split(" ")[0]);                                   /* Ex. GET /artists?name=Petra HTTP/1.1  */
+                if (headerLine.contains("?")) {
+                    String requestUrl = (headerLine.split(" ")[1].split("[?]")[0]);
+                    request.setRequestUrl(requestUrl);                                                      /* Ex.    /artists  */
+                    String queryString = headerLine.split(" ")[1].split("[?]")[1];              /* Ex.    name=Petra   */
+
+                    if (queryString.contains("=")) {                                //splitta på [=] och lägg in i en Map
+                        Map <String, String> queryParameters = new HashMap<>();
+                        queryParameters.put(queryString.split("=")[0], queryString.split("=")[1]);
+                        request.setQueryParameters(queryParameters);
+                    }
+                } else
+                    request.setRequestUrl(headerLine.split(" ")[1]);        /* Ex.    /artists/add  */
+                }
+
+            if( headerLine.startsWith("Content-Length: "))
+                request.setContentLength(Integer.parseInt(headerLine.split(" ")[1]));
+
+            if( headerLine.startsWith("Content-Type: "))
+                request.setContentType(headerLine.split(" ")[1]);
 
             if (headerLine.isEmpty())
                 break;
+        }
 
-            if (isFirstheaderline(headerLine)) {                  //Regel: Om if, switch eller while, det ska vara det första som finns i en metod
-                System.out.println("ReadHttpRequest:" + headerLine);
-                parseFirstheaderline(request, headerLine);
-            }
-            else {
-                System.out.println("ReadHttpRequest:" + headerLine);
-                parseHeaderline(request, headerLine);
-            }
-            System.out.println(headerLine);
-        }                                                              // efter att readeHeaderlines läst tom rad är nästa tecken det första i bodyn
-        request.setBody(parseBody(byteInput, request.getRequestMethod(), request.getContentLength()));
+        // efter att readeHeaderlines läst tom rad är nästa tecken det första i bodyn
+        if( request.getRequestMethod().equals("POST") && request.getRequestUrl().contains("/add")) {
+
+                    //Read body.
+                    byte[] body = new byte[request.getContentLength()];
+
+                    int i = byteInput.read(body);                           //Läser bytes från byteInput och sparar i body. Returnerar storleken i en int
+                    String bodyText = new String(body);                     //skapar en String av body-arrayen
+
+                    request.setBody(bodyText);
+                    System.out.println("Actual: " + i + ", Expected: " + request.getContentLength());
+                    System.out.println(bodyText);
+        }
+
+        System.out.println("ReadHeaderLines. " + request);
         return request;
     }
 
-//    private static Request readHeaders(BufferedInputStream input) throws IOException {
-//        var request = new Request();
-//        while (true) {
-//            String headerLine = readLine(input);
-//            if( headerLine.startsWith("GET")||headerLine.startsWith("POST")||headerLine.startsWith("HEAD") )
-//            {
-//                request.requestType = headerLine.split(" ")[0];
-//                request.requestedUrl = headerLine.split(" ")[1];
-//                request.requestedUrl = request.requestedUrl.split("[?]")[0];
-//            }
-//            if( headerLine.startsWith("Content-Length: "))
-//            {
-//                request.length = Integer.parseInt(headerLine.split(" ")[1]);
-//            }
-//            System.out.println(headerLine);
-//            if (headerLine.isEmpty())
-//                break;
-//        }
-//        return request;
-//    }
-//
-//    if( request.requestType.equals("POST") && request.requestedUrl.equals("/upload"))
-//        {
-//            //Read body.
-//            byte[] body = new byte[request.length];
-//            int i = input.read(body);
-//            System.out.println("Actual: " + i + ", Expected: " + request.length);
-//            String bodyText = new String(body);
-//            System.out.println(bodyText);
-//            //Put to database
-//        }
-
-    private static byte[] parseBody(BufferedInputStream input, String requestMethod, int contentLength) throws IOException {
-        byte[] body = new byte[0];                                          //Bättre att initiera med 0-array än null
-        if(requestMethod.equals("POST")) {
-            body = new byte[contentLength];
-            int i = input.read(body);
-            System.out.println("ParseBody. Actual: " + i + ", Expected: " + contentLength);
-//            input.read(body);
-            String bodyText = new String(body);
-            System.out.println(bodyText);
-            //read läser från input och lägger i body. Returnerar hur mkt den lyckas läsa
-        }
-        return body;
-    }
-
-    private static boolean isFirstheaderline(String headerLine) {
-        return headerLine.startsWith("GET") || headerLine.startsWith("POST") || headerLine.startsWith("HEAD") ||
-                headerLine.startsWith("PUT") || headerLine.startsWith("DELETE");
-    }
-
-    private static void parseFirstheaderline(Request request, String headerLine) {          //if url.contains(["[?]" ta del nummer [1]])
-        String[] firstLine = headerLine.split(" ");
-        request.setRequestMethod(firstLine[0]);
-        String[] url = firstLine[1].split("[?]");                                   //request.requestedUrl.split("[?]")[0];
-        request.setRequestUrl(url[0]);
-        if(url.length > 1) {
-            request.setUrlParameterString(url[1]);
-        }
-        System.out.println("ParseFirstHeaderline. Url:" + request.getRequestUrl() + " " + request.getUrlParameterString());
-    }
-
-
-    private static void parseHeaderline(Request request, String headerLine) {
-        if (headerLine.startsWith("Content-Length: ")) {                                     //http://localhost:8080/Order?id=2345
-            request.setContentLength(Integer.parseInt(headerLine.split(" ")[1]));
-            System.out.println("parseHeaderline-Content-length."+ request.getContentLength());
-        } else if (headerLine.startsWith("Content-Type: ")) {
-            request.setContentType(headerLine.split(" ")[1]);
-            System.out.println("parseHeaderline-Content-Type." +request.getContentType());
-        }
-    }
-
-    public static String readLine(BufferedInputStream inputStream) throws IOException {
+    private static String readLine(BufferedInputStream inputStream) throws IOException {
         final int MAX_READ = 4096;
         byte[] buffer = new byte[MAX_READ];
         int bytesRead = 0;
@@ -170,20 +127,20 @@ public class ComplexServer {
             buffer[bytesRead++] = (byte) inputStream.read();
             if (buffer[bytesRead - 1] == '\r') {
                 buffer[bytesRead++] = (byte) inputStream.read();
-                if( buffer[bytesRead - 1] == '\n')
+                if (buffer[bytesRead - 1] == '\n')
                     break;
             }
         }
-        return new String(buffer,0,bytesRead-2, StandardCharsets.UTF_8);
+        return new String(buffer, 0, bytesRead - 2, StandardCharsets.UTF_8);
     }
 
-    public static void postHttpResponse(Socket socket, Response response) {
+    public static void postResponse(Socket socket, Response response) {
         //Lägg detta i Response-klassen eventuellt
         try {
             var output = new PrintWriter(socket.getOutputStream());
 
             //Print header
-            output.println(response.getStatusMessage());
+            output.println(response.getFirstHeaderLine());
             output.println("Content-Length:" + response.getContentLength());
             output.println("Content-Type:" + response.getContentType());
             output.println("");
@@ -196,9 +153,9 @@ public class ComplexServer {
                 dataOut.flush();
             }
             socket.close();
-
-        } catch(IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 }
+

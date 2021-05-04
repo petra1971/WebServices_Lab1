@@ -36,5 +36,14 @@ public class ArtistDaoJpaImpl implements ArtistDAO {
         em.getTransaction().commit();
         return list;
     }
+
+    @Override
+    public Artist getById(int id) {
+        EntityManager em = emf.createEntityManager();
+        em.getTransaction().begin();
+        Artist artist = em.createQuery("from Artist  a where a.artistId = :artistId", Artist.class)
+                .setParameter("artistId", id).getSingleResult();
+        return artist;
+    }
 }
 
