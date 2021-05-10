@@ -9,7 +9,7 @@ public class Request {
     private int contentLength;
     private String host;
 //    private String queryString;
-    private Map<String, String> queryParameters;
+    private Map<String, String> queryParams;
 //    private byte[] body;
     private String body;
 
@@ -18,12 +18,12 @@ public class Request {
     public Request() {}
 
     public Request(String requestMethod, String url,
-                   String contentType, int contentLength, Map<String, String> queryParameters) {
+                   String contentType, int contentLength, Map<String, String> queryParams) {
         this.requestMethod = requestMethod;
         this.requestUrl = url;
         this.contentType = contentType;
         this.contentLength = contentLength;
-        this.queryParameters = queryParameters;
+        this.queryParams = queryParams;
     }
 
     public String getRequestMethod() {
@@ -58,16 +58,16 @@ public class Request {
         this.contentLength = contentLength;
     }
 
-    public Map<String, String> getQueryParameters() {
-        return queryParameters;
+    public Map<String, String> getQueryParams() {
+        return queryParams;
     }
 
 //    public void setQueryString(String queryString) {
 //        this.queryString = queryString;
 //    }
 
-    public void setQueryParameters(Map<String, String> queryParameters) {
-        this.queryParameters = queryParameters;
+    public void setRequestParams(Map<String, String> queryParams) {
+        this.queryParams = queryParams;
     }
 
     public String getBody() {

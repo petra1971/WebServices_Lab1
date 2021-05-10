@@ -14,13 +14,10 @@ public class JsonConverter {
         return gson.toJson(obj);
     }
 
-    //Bra sätt? I såna fall byt ut convert i ArtistHandlern
-    public Object convertToObject(String jsonObject) {
-        var object
-                = gson.fromJson(jsonObject,
-                Object.class);
+    //Generisk metod
+    public <T> T convertToObject(String jsonObject, Class<T> classOfT) {
 
-        // return object
-        return object;
+        return gson.fromJson(jsonObject,
+                classOfT);
     }
 }

@@ -1,6 +1,5 @@
 package se.andreasson.core;
 
-import com.google.gson.Gson;
 import se.andreasson.core.model.Artist;
 import se.andreasson.core.model.Request;
 import se.andreasson.core.model.Response;
@@ -20,70 +19,84 @@ public class ArtistHandler implements URLHandler {
         List<Artist> artists = new ArrayList<>();
 
         if (request.getRequestMethod().equals("GET")) {
-
-            if (request.getQueryParameters() == null)         // -> no query parameters (no '?')
-            {
-                artists = artistDAO.getAllArtists();
-                System.out.println("handleURL. Get all artists" + artists.toString());
-            }
-            else if (request.getQueryParameters().containsKey("name"))   //E. Query string: name=Petra
-            {
-                System.out.println("handleURL. QueryParameters: " + request.getQueryParameters().values());
-                String artistName = request.getQueryParameters().get("name");
-                System.out.println("handleUrl. Artist name:" + artistName);
-                artists = artistDAO.getByName(artistName);
-            }
-            if (!artists.isEmpty())
-            {
-                setJsonResponse(response, artists);
-            }
-            else {
-                setNotFoundResponse(response);
-            }
-
-        } else if (request.getRequestMethod().equals("POST") && request.getContentType().equals("application/json")) {
-            try {
-                //Make artist objects from json string in the body
-                Gson gson = new Gson();
-                String bodyText = request.getBody();                        //String body = IOUtils.toString(request.getBody(), "StandardCharsets.UTF_8");
-                System.out.println("Artisthandler. BodyText. " + bodyText);
-                var artist = gson.fromJson(bodyText, Artist.class);                   //Employee empObject = gson.fromJson(jsonString, Employee.class); var obj = JSON.parse('{ "name":"John", "age":30, "city":"New York"}');
-                System.out.println("Artist from Json-input: " + artist.toString());
-
-                artistDAO.create(artist);
-                setCreatedResponse(response);
-
-            } catch (Exception e) {
-                System.out.println("Cannot add posted artist to DB. " + e);
-                setBadRequestResponse(response);
-            }
+            handleGetRequest(request, artistDAO, response, artists);
         }
+        else if (request.getRequestMethod().equals("HEAD")) {
+            handleHeadRequest(request, artistDAO, response, artists);
+        }
+        else if (request.getRequestMethod().equals("POST")) {
+            handlePostRequest(request, artistDAO, response);
+        }
+        else
+            response.setBadRequestResponse();
+
         return response;
     }
 
-    private void setJsonResponse(Response response, List<Artist> artists) {
-        JsonConverter jsonConverter = new JsonConverter();
-        var jsonResponse = jsonConverter.convertToJson(artists);
-        byte[] jsonBytes = jsonResponse.getBytes();
-        response.setContentType("application/json");          //ska det vara nån annan typ?
-        response.setContentLength(jsonBytes.length);
-        response.setContent(jsonBytes);
-        response.setFirstHeaderLine("HTTP/1.1 200 OK");
+    private void handleHeadRequest(Request request, ArtistDAO artistDAO, Response response, List<Artist> artists) {
+        if (request.getQueryParams() == null)         // -> no query parameters (no '?')
+        {
+            artists = artistDAO.getAllArtists();
+            System.out.println("handleURL. Get all artists" + artists.toString());
+        }
+        else if (request.getQueryParams().containsKey("name"))   //E. Query string: name=Petra
+        {
+            System.out.println("handleURL. QueryParameters: " + request.getQueryParams().get("name"));
+            String artistName = request.getQueryParams().get("name");
+            System.out.println("handleUrl. Artist name:" + artistName);
+            artists = artistDAO.getByName(artistName);
+        }
+        if (!artists.isEmpty())
+        {
+            response.setEmptyJsonResponse(artists);
+        }
+        else {
+            response.setNotFoundResponse();
+        }
     }
 
-    private void setNotFoundResponse(Response response) {
-        response.setFirstHeaderLine("HTTP/1.1 404 Not Found");
-        response.setContentLength(0);
+    private void handleGetRequest(Request request, ArtistDAO artistDAO, Response response, List<Artist> artists) {
+        if (request.getQueryParams() == null)         // -> no query parameters (no '?')
+        {
+            artists = artistDAO.getAllArtists();
+            System.out.println("handleURL. Get all artists" + artists.toString());
+        }
+        else if (request.getQueryParams().containsKey("name"))   //E. Query string: name=Petra
+        {
+            System.out.println("handleURL. QueryParameters: " + request.getQueryParams().get("name"));
+            String artistName = request.getQueryParams().get("name");
+            System.out.println("handleUrl. Artist name:" + artistName);
+            artists = artistDAO.getByName(artistName);
+        }
+        if (!artists.isEmpty())
+        {
+            response.setJsonResponse(artists);
+        }
+        else {
+            response.setNotFoundResponse();
+        }
     }
 
-    private void setCreatedResponse(Response response) {
-        response.setFirstHeaderLine("HTTP/1.1 201 Created");
-        response.setContentLength(0);
+    private void handlePostRequest(Request request, ArtistDAO artistDAO, Response response) {
+        if (request.getContentType().equals("application/json")) {
+            try {
+                handlePostJsonRequest(request, artistDAO, response);
+            } catch (Exception e) {
+                System.out.println("Cannot add posted artist to DB. " + e);
+                response.setBadRequestResponse();
+            }
+        }
     }
+    private void handlePostJsonRequest(Request request, ArtistDAO artistDAO, Response response) {
+        //Make artist objects from json string in the body
+        String bodyText = request.getBody();                        //String body = IOUtils.toString(request.getBody(), "StandardCharsets.UTF_8");
+        System.out.println("Artisthandler. BodyText. " + bodyText);
 
-    private void setBadRequestResponse(Response response) {
-        response.setFirstHeaderLine("HTTP/1.1 400 Bad Request");
-        response.setContentLength(0);
+        JsonConverter converter = new JsonConverter();
+        Artist artist = converter.convertToObject(bodyText, Artist.class);                   //Jag skulle vilja flytta detta till jsonConverter men blir svårt om jag vill ha det generiskt
+        System.out.println("Artist from Json-input: " + artist.toString());
+
+        artistDAO.create(artist);
+        response.setCreatedResponse();
     }
-
 }
